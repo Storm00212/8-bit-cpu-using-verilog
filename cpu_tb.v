@@ -520,11 +520,11 @@ module cpu_tb;
     // Timeout Protection
     // =========================================================================
     // Prevent simulation from running indefinitely.
-    // Force finish after 5000ns.
+    // Force finish after 1000ns.
     
     initial begin
-        #5000;
-        $display("TIMEOUT: Simulation exceeded 5000ns");
+        #1000;
+        $display("TIMEOUT: Simulation exceeded 1000ns");
         $finish;
     end
     
