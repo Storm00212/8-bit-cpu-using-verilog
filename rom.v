@@ -5,7 +5,6 @@
 // ROM provides non-volatile program storage for the CPU. It stores:
 // - The program instructions to be executed
 // - Fixed data tables (lookup tables, character fonts, etc.)
-// - Boot code (in some architectures)
 // 
 // Characteristics:
 // - Non-volatile memory (contents retained without power)
@@ -90,100 +89,5 @@ module rom (
         // Combinational read - output is always valid
         data_out = memory[addr];
     end
-
-    // =========================================================================
-    // ROM Loading Task
-    // =========================================================================
-    // This task allows loading ROM contents from an external file.
-    // It is primarily used for simulation to load custom programs.
-    //
-    // File Format:
-    // - ASCII text file with one byte per line
-    // - Each line contains an 8-bit binary value
-    // - Example: "00000001" for opcode 0x01
-    //
-    // Usage:
-    // initial begin
-    //     rom.load_from_file("program.bin");
-    // end
-    
-    task load_from_file;
-        input [80:0] filename;     // File path (up to 80 chars + null)
-        integer fid, i;
-        begin
-            // Open the file for reading
-            fid = $fopen(filename, "r");
-            
-            // Check if file opened successfully
-            if (fid == 0) begin
-                $display("Error: Could not open ROM file %s", filename);
-            end else begin
-                // Read all 65,536 bytes from the file
-                for (i = 0; i < 65536; i = i + 1) begin
-                    // Check for end of file before reading
-                    if (!$feof(fid)) begin
-                        // Read binary value (format: %b for binary)
-                        $fscanf(fid, "%b", memory[i]);
-                    end
-                end
-                
-                // Close the file
-                $fclose(fid);
-                
-                // Confirm successful load
-                $display("ROM loaded successfully from %s", filename);
-            end
-        end
-    endtask
-
-    // =========================================================================
-    // ROM Verification Task
-    // =========================================================================
-    // This task verifies ROM contents against expected values.
-    // Useful for testing and debugging.
-    
-    task verify_contents;
-        input [15:0] start_addr;
-        input [15:0] end_addr;
-        input [7:0] expected_value;
-        output integer error_count;
-        integer j;
-        begin
-            error_count = 0;
-            for (j = start_addr; j <= end_addr; j = j + 1) begin
-                if (memory[j] != expected_value) begin
-                    $display("ROM verification error at 0x%04h: expected 0x%02h, got 0x%02h",
-                             j, expected_value, memory[j]);
-                    error_count = error_count + 1;
-                end
-            end
-        end
-    endtask
-
-    // =========================================================================
-    // ROM Information Task
-    // =========================================================================
-    // This task displays information about the ROM contents.
-    
-    task report_contents;
-        integer j;
-        integer opcode_count;
-        begin
-            opcode_count = 0;
-            for (j = 0; j < 256; j = j + 1) begin
-                if (memory[j] != 8'h00) begin
-                    opcode_count = opcode_count + 1;
-                end
-            end
-            
-            $display("ROM Contents Report:");
-            $display("  Total size: 65536 bytes");
-            $display("  Non-zero bytes: %0d", opcode_count);
-            $display("  First 16 bytes:");
-            for (j = 0; j < 16; j = j + 1) begin
-                $display("    0x%04h: 0x%02h", j, memory[j]);
-            end
-        end
-    endtask
 
 endmodule
