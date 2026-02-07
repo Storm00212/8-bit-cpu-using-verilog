@@ -31,7 +31,7 @@ module ram (
     
     // Outputs
     output reg [7:0] data_out, // 8-bit data output (for read operations)
-    output reg ready           // Memory ready signal
+    output wire ready           // Memory ready signal
 );
 
     // =========================================================================
@@ -121,10 +121,8 @@ module ram (
     // - No pending operations
     // - Power-up sequence complete
     
-    always @(*) begin
-        // Memory is always ready in this implementation
-        ready = 1'b1;
-    end
+    // Continuous assignment since ready is always 1
+    assign ready = 1'b1;
 
     // =========================================================================
     // Memory Access Tasks (for Simulation/Debug)
