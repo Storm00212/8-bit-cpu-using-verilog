@@ -11,10 +11,13 @@
 
 module cpu_tb;
     
+    // Testbench signals
     reg clk;
     reg reset;
     wire [7:0] data_bus;
     wire [15:0] addr_bus;
+    wire mem_read;
+    wire mem_write;
     wire [7:0] acc_out;
     wire [15:0] pc_out;
     wire [7:0] flags_out;
@@ -22,57 +25,13 @@ module cpu_tb;
     wire [7:0] y_out;
     wire halt;
     
-    wire mem_read;
-    wire mem_write;
-    
-    // Declare ROM and RAM arrays at testbench level
-    reg [7:0] rom_array [0:65535];
-    reg [7:0] ram_array [0:65535];
-    reg [7:0] mem_data_out;
-    
-    // Internal signals for ROM and RAM
+    // ROM/RAM signals
     wire [7:0] rom_data_out;
     wire [7:0] ram_data_out;
+    reg [7:0] rom_array [0:65535];
+    reg [7:0] ram_array [0:65535];
     
-    // ROM address and data
-    wire [15:0] rom_addr = addr_bus;
-    
-    // ROM module
-    rom rom_inst (
-        .addr(rom_addr),
-        .data_out(rom_data_out)
-    );
-    
-    // RAM module
-    ram ram_inst (
-        .clk(clk),
-        .reset(reset),
-        .addr(addr_bus),
-        .data_in(acc_out),
-        .write_enable(mem_write),
-        .read_enable(1'b0),  // RAM read handled by testbench
-        .data_out(ram_data_out),
-        .ready()
-    );
-    
-    always @(*) begin
-        if (addr_bus < 16'h0100) begin
-            mem_data_out = rom_array[addr_bus];
-        end else begin
-            mem_data_out = ram_array[addr_bus];
-        end
-    end
-    
-    assign rom_data_out = rom_array[addr_bus];
-    
-    always @(posedge clk) begin
-        if (mem_write && addr_bus >= 16'h0100) begin
-            ram_array[addr_bus] <= acc_out;
-        end
-    end
-    
-    always #5 clk = ~clk;
-    
+    // CPU instance
     cpu_top cpu (
         .clk(clk),
         .reset(reset),
@@ -88,8 +47,39 @@ module cpu_tb;
         .halt(halt)
     );
     
-    assign data_bus = (mem_write) ? acc_out : 
-                      (mem_data_out);
+    // ROM instance - provides program code
+    rom rom_inst (
+        .addr(addr_bus),
+        .data_out(rom_data_out)
+    );
+    
+    // ROM data comes from testbench array
+    assign rom_data_out = rom_array[addr_bus];
+    
+    // RAM instance - provides data storage
+    ram ram_inst (
+        .clk(clk),
+        .reset(reset),
+        .addr(addr_bus),
+        .data_in(acc_out),
+        .write_enable(mem_write && addr_bus >= 16'h0100),
+        .read_enable(mem_read && addr_bus >= 16'h0100),
+        .data_out(ram_data_out),
+        .ready()
+    );
+    
+    // RAM data comes from testbench array for reads
+    wire ram_read_enable = mem_read && (addr_bus >= 16'h0100);
+    
+    // Clock generation
+    always #5 clk = ~clk;
+    
+    // RAM write in testbench (for reference)
+    always @(posedge clk) begin
+        if (mem_write && addr_bus >= 16'h0100) begin
+            ram_array[addr_bus] <= acc_out;
+        end
+    end
     
     integer clock_cycles = 0;
     integer i;
@@ -116,22 +106,26 @@ module cpu_tb;
                    flags_out, flags_out[0], flags_out[1], flags_out[2], flags_out[3]);
             
             $write("--- MEMORY ---\n");
-            $write("  ROM[0x%04h] = 0x%02h", addr_bus, rom_array[addr_bus]);
-            if (rom_array[addr_bus] == `OPCODE_NOP) $write("  [NOP]");
-            else if (rom_array[addr_bus] == `OPCODE_LDA_IMM) $write("  [LDA #imm]");
-            else if (rom_array[addr_bus] == `OPCODE_LDX_IMM) $write("  [LDX #imm]");
-            else if (rom_array[addr_bus] == `OPCODE_LDY_IMM) $write("  [LDY #imm]");
-            else if (rom_array[addr_bus] == `OPCODE_ADD_IMM) $write("  [ADD #imm]");
-            else if (rom_array[addr_bus] == `OPCODE_SUB_IMM) $write("  [SUB #imm]");
-            else if (rom_array[addr_bus] == `OPCODE_AND_IMM) $write("  [AND #imm]");
-            else if (rom_array[addr_bus] == `OPCODE_OR_IMM) $write("  [OR #imm]");
-            else if (rom_array[addr_bus] == `OPCODE_XOR_IMM) $write("  [XOR #imm]");
-            else if (rom_array[addr_bus] == `OPCODE_NOT) $write("  [NOT]");
-            else if (rom_array[addr_bus] == `OPCODE_INC) $write("  [INC]");
-            else if (rom_array[addr_bus] == `OPCODE_DEC) $write("  [DEC]");
-            else if (rom_array[addr_bus] == `OPCODE_BEQ) $write("  [BEQ]");
-            else if (rom_array[addr_bus] == `OPCODE_BNE) $write("  [BNE]");
-            else if (rom_array[addr_bus] == `OPCODE_BRA) $write("  [BRA]");
+            if (addr_bus < 16'h0100) begin
+                $write("  ROM[0x%04h] = 0x%02h", addr_bus, rom_array[addr_bus]);
+                if (rom_array[addr_bus] == `OPCODE_NOP) $write("  [NOP]");
+                else if (rom_array[addr_bus] == `OPCODE_LDA_IMM) $write("  [LDA #imm]");
+                else if (rom_array[addr_bus] == `OPCODE_LDX_IMM) $write("  [LDX #imm]");
+                else if (rom_array[addr_bus] == `OPCODE_LDY_IMM) $write("  [LDY #imm]");
+                else if (rom_array[addr_bus] == `OPCODE_ADD_IMM) $write("  [ADD #imm]");
+                else if (rom_array[addr_bus] == `OPCODE_SUB_IMM) $write("  [SUB #imm]");
+                else if (rom_array[addr_bus] == `OPCODE_AND_IMM) $write("  [AND #imm]");
+                else if (rom_array[addr_bus] == `OPCODE_OR_IMM) $write("  [OR #imm]");
+                else if (rom_array[addr_bus] == `OPCODE_XOR_IMM) $write("  [XOR #imm]");
+                else if (rom_array[addr_bus] == `OPCODE_NOT) $write("  [NOT]");
+                else if (rom_array[addr_bus] == `OPCODE_INC) $write("  [INC]");
+                else if (rom_array[addr_bus] == `OPCODE_DEC) $write("  [DEC]");
+                else if (rom_array[addr_bus] == `OPCODE_BEQ) $write("  [BEQ]");
+                else if (rom_array[addr_bus] == `OPCODE_BNE) $write("  [BNE]");
+                else if (rom_array[addr_bus] == `OPCODE_BRA) $write("  [BRA]");
+            end else begin
+                $write("  RAM[0x%04h] = 0x%02h", addr_bus, ram_array[addr_bus]);
+            end
             $write("\n");
             
             $write("\n");
@@ -209,7 +203,7 @@ module cpu_tb;
         for (i = 0; i < 80; i = i + 1) $write("-");
         $write("\n");
         
-        repeat (25) begin
+        repeat (30) begin
             @(posedge clk);
             #1;
             print_state("EXECUTE");
@@ -221,8 +215,11 @@ module cpu_tb;
         $write("SIMULATION COMPLETE\n");
         $write("Total clock cycles: %0d\n", clock_cycles);
         $write("Final ACC value: 0x%02h\n", acc_out);
+        $write("Expected ACC: 0x5F (95 decimal)\n");
         $write("Final X value: 0x%02h\n", x_out);
+        $write("Expected X: 0xAA (170 decimal)\n");
         $write("Final Y value: 0x%02h\n", y_out);
+        $write("Expected Y: 0x33 (51 decimal)\n");
         for (i = 0; i < 80; i = i + 1) $write("=");
         $write("\n\n");
         
@@ -231,7 +228,7 @@ module cpu_tb;
     end
     
     initial begin
-        #50000;
+        #100000;
         $write("\nTIMEOUT - Simulation took too long\n");
         $finish;
     end
