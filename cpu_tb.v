@@ -1,14 +1,8 @@
 // ============================================================================
-// CPU Complete Testbench - Real-Time Monitoring
+// CPU Testbench - Real-Time Monitoring
 // ============================================================================
 // 
-// This testbench provides real-time terminal output showing:
-// - Clock cycles
-// - All bus signals (data, address, control)
-// - Register contents (ACC, X, Y, PC, SP, IR, Flags)
-// - Status flags
-// - Memory content
-// - Current instruction
+// Displays: Clock cycles, buses, registers, flags, memory, and instructions
 // ============================================================================
 
 `timescale 1ns/1ps
@@ -17,13 +11,10 @@
 
 module cpu_tb;
     
-    // CPU signals
     reg clk;
     reg reset;
     wire [7:0] data_bus;
     wire [15:0] addr_bus;
-    wire mem_read;
-    wire mem_write;
     wire [7:0] acc_out;
     wire [15:0] pc_out;
     wire [7:0] flags_out;
@@ -31,7 +22,9 @@ module cpu_tb;
     wire [7:0] y_out;
     wire halt;
     
-    // Memory
+    wire mem_read;
+    wire mem_write;
+    
     reg [7:0] ram [0:65535];
     reg [7:0] rom [0:65535];
     reg [7:0] mem_data_out;
@@ -45,7 +38,7 @@ module cpu_tb;
     end
     
     always @(posedge clk) begin
-        if (mem_write && addr_bus >= 16'h0100) begin
+        if (mem_write) begin
             ram[addr_bus] <= acc_out;
         end
     end
@@ -67,35 +60,26 @@ module cpu_tb;
         .halt(halt)
     );
     
-    assign data_bus = (mem_read) ? mem_data_out : 8'hZZ;
+    assign data_bus = (mem_read) ? mem_data_out : 8'bZ;
     
     integer clock_cycles = 0;
     integer i;
     
-    // Helper task to print separator
-    task print_sep;
-        begin
-            $write("\n");
-            for (i = 0; i < 80; i = i + 1) $write("=");
-            $write("\n");
-        end
-    endtask
-    
-    // Main display task
-    task display_state;
+    task print_state;
         input [79:0] phase;
         begin
             clock_cycles = clock_cycles + 1;
-            print_sep;
-            $write("  CLOCK CYCLE: %0d  |  PHASE: %s\n", clock_cycles, phase);
-            print_sep;
+            $write("\n");
+            $write("================================================================================\n");
+            $write("  CLOCK CYCLE: %0d  |  %s\n", clock_cycles, phase);
+            $write("================================================================================\n");
             
             $write("--- BUS SIGNALS ---\n");
-            $write("  ADDR: 0x%04h  DATA: 0x%02h  MEM_RD: %b  MEM_WR: %b\n", 
-                   addr_bus, data_bus, mem_read, mem_write);
+            $write("  CLK:    %b  |  ADDR: 0x%04h  |  DATA: 0x%02h\n", clk, addr_bus, data_bus);
+            $write("  MEM_RD: %b  |  MEM_WR: %b\n", mem_read, mem_write);
             
             $write("--- REGISTERS ---\n");
-            $write("  PC:  0x%04h  ACC: 0x%02h  X: 0x%02h  Y: 0x%02h\n", 
+            $write("  PC:  0x%04h  |  ACC: 0x%02h  |  X: 0x%02h  |  Y: 0x%02h\n", 
                    pc_out, acc_out, x_out, y_out);
             
             $write("--- FLAGS ---\n");
@@ -103,9 +87,23 @@ module cpu_tb;
                    flags_out, flags_out[0], flags_out[1], flags_out[2], flags_out[3]);
             
             $write("--- MEMORY ---\n");
-            $write("  ROM[0x%04h] = 0x%02h\n", addr_bus, rom[addr_bus]);
+            $write("  ROM[0x%04h] = 0x%02h", addr_bus, rom[addr_bus]);
+            if (rom[addr_bus] == `OPCODE_NOP) $write("  [NOP]");
+            else if (rom[addr_bus] == `OPCODE_LDA_IMM) $write("  [LDA #imm]");
+            else if (rom[addr_bus] == `OPCODE_LDX_IMM) $write("  [LDX #imm]");
+            else if (rom[addr_bus] == `OPCODE_ADD_IMM) $write("  [ADD #imm]");
+            else if (rom[addr_bus] == `OPCODE_SUB_IMM) $write("  [SUB #imm]");
+            else if (rom[addr_bus] == `OPCODE_AND_IMM) $write("  [AND #imm]");
+            else if (rom[addr_bus] == `OPCODE_OR_IMM) $write("  [OR #imm]");
+            else if (rom[addr_bus] == `OPCODE_XOR_IMM) $write("  [XOR #imm]");
+            else if (rom[addr_bus] == `OPCODE_NOT) $write("  [NOT]");
+            else if (rom[addr_bus] == `OPCODE_INC) $write("  [INC]");
+            else if (rom[addr_bus] == `OPCODE_DEC) $write("  [DEC]");
+            else if (rom[addr_bus] == `OPCODE_BEQ) $write("  [BEQ]");
+            else if (rom[addr_bus] == `OPCODE_BNE) $write("  [BNE]");
+            else if (rom[addr_bus] == `OPCODE_BRA) $write("  [BRA]");
+            $write("\n");
             
-            print_sep;
             $write("\n");
         end
     endtask
@@ -113,9 +111,12 @@ module cpu_tb;
     initial begin
         $timeformat(-9, 0, " ns", 8);
         
-        print_sep;
-        $write("           8-BIT CPU SIMULATION - REAL-TIME MONITOR\n");
-        print_sep;
+        $write("\n");
+        for (i = 0; i < 80; i = i + 1) $write("=");
+        $write("\n");
+        $write("                    8-BIT CPU SIMULATION - REAL-TIME MONITOR\n");
+        for (i = 0; i < 80; i = i + 1) $write("=");
+        $write("\n\n");
         
         clk = 0;
         reset = 0;
@@ -128,50 +129,67 @@ module cpu_tb;
         rom[16'h0003] = 8'hAA;
         rom[16'h0004] = `OPCODE_ADD_IMM;
         rom[16'h0005] = 8'h0A;
-        rom[16'h0006] = `OPCODE_NOP;
-        for (i = 16'h0007; i < 16'h0100; i = i + 1) rom[i] = `OPCODE_NOP;
+        rom[16'h0006] = `OPCODE_SUB_IMM;
+        rom[16'h0007] = 8'h05;
+        rom[16'h0008] = `OPCODE_AND_IMM;
+        rom[16'h0009] = 8'hFF;
+        rom[16'h000A] = `OPCODE_OR_IMM;
+        rom[16'h000B] = 8'h0F;
+        rom[16'h000C] = `OPCODE_XOR_IMM;
+        rom[16'h000D] = 8'hFF;
+        rom[16'h000E] = `OPCODE_NOT;
+        rom[16'h000F] = `OPCODE_NOP;
+        for (i = 16'h0010; i < 16'h0100; i = i + 1) rom[i] = `OPCODE_NOP;
         
-        $write("Program:\n");
-        $write("  0x0000: LDA #0x55\n");
-        $write("  0x0002: LDX #0xAA\n");
-        $write("  0x0004: ADD #0x0A\n");
-        $write("  0x0006: NOP\n\n");
+        $write("Test Program:\n");
+        $write("  0x0000: LDA #0x55  ; Load ACC = 85\n");
+        $write("  0x0002: LDX #0xAA  ; Load X = 170\n");
+        $write("  0x0004: ADD #0x0A  ; ADD 10 to ACC\n");
+        $write("  0x0006: SUB #0x05  ; SUB 5 from ACC\n");
+        $write("  0x0008: AND #0xFF  ; AND with 255\n");
+        $write("  0x000A: OR  #0x0F  ; OR with 15\n");
+        $write("  0x000C: XOR #0xFF  ; XOR with 255\n");
+        $write("  0x000E: NOT        ; NOT ACC\n");
+        $write("  0x000F: NOP        ; Halt\n\n");
         
         // Reset
-        print_sep;
-        $write("APPLYING RESET\n");
-        print_sep;
+        for (i = 0; i < 80; i = i + 1) $write("-");
+        $write("\nAPPLYING RESET\n");
+        for (i = 0; i < 80; i = i + 1) $write("-");
+        $write("\n");
         reset = 1;
         #10;
         reset = 0;
         #10;
-        
-        display_state("INITIAL STATE");
+        print_state("INITIAL STATE");
         
         // Execute instructions
-        print_sep;
-        $write("EXECUTING INSTRUCTIONS\n");
-        print_sep;
+        for (i = 0; i < 80; i = i + 1) $write("-");
+        $write("\nEXECUTING INSTRUCTIONS\n");
+        for (i = 0; i < 80; i = i + 1) $write("-");
+        $write("\n");
         
-        repeat (15) begin
+        repeat (20) begin
             @(posedge clk);
-            #2;
-            display_state("EXECUTE");
+            #1;
+            print_state("EXECUTE");
         end
         
-        print_sep;
+        // Summary
+        for (i = 0; i < 80; i = i + 1) $write("=");
+        $write("\n");
         $write("SIMULATION COMPLETE\n");
         $write("Total clock cycles: %0d\n", clock_cycles);
-        print_sep;
+        for (i = 0; i < 80; i = i + 1) $write("=");
+        $write("\n\n");
         
         #100;
         $finish;
     end
     
-    // Timeout
     initial begin
         #50000;
-        $write("\nTIMEOUT\n");
+        $write("\nTIMEOUT - Simulation took too long\n");
         $finish;
     end
     
