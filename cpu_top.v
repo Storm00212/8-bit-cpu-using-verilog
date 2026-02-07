@@ -3,7 +3,7 @@
 // ============================================================================
 // 
 // The CPU Top-Level Module integrates all the individual components of the
-// 8-bit CPU into a complete, functional processor.
+// 8-bit CPU. The testbench handles ROM/RAM and drives the data bus.
 // ============================================================================
 
 `include "instructions.vh"
