@@ -2,7 +2,7 @@
 
 A complete, functional 8-bit CPU implementation in Verilog HDL with arithmetic, logical, scientific calculation capabilities, RAM, ROM, and comprehensive instruction set.
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Features](#features)
 - [Architecture](#architecture)
@@ -16,30 +16,34 @@ A complete, functional 8-bit CPU implementation in Verilog HDL with arithmetic, 
 
 ---
 
-## ✨ Features
+## Features
 
 ### Arithmetic Operations
+
 - **Addition** (ADD) - 8-bit addition with carry flag
 - **Subtraction** (SUB) - 8-bit subtraction with borrow flag
-- **Multiplication** (MUL) - 8-bit × 8-bit = 8-bit multiplication
-- **Division** (DIV) - 8-bit ÷ 8-bit division with quotient
+- **Multiplication** (MUL) - 8-bit x 8-bit = 8-bit multiplication
+- **Division** (DIV) - 8-bit / 8-bit division with quotient
 - **Increment/Decrement** (INC/DEC) - Single operand operations
 
 ### Logical Operations
+
 - **AND** - Bitwise AND
 - **OR** - Bitwise OR
 - **XOR** - Bitwise XOR
 - **NOT** - Bitwise NOT (complement)
 
 ### Shift/Rotate Operations
+
 - **Shift Left** (SHL) - Logical shift left
 - **Shift Right** (SHR) - Logical shift right
 - **Rotate Left** (ROL) - Rotate left through carry
 - **Rotate Right** (ROR) - Rotate right through carry
 
 ### Scientific Calculations
+
 - **Square Root** (SQRT) - Integer square root approximation
-- **Square** (SQUARE) - x² calculation
+- **Square** (SQUARE) - x2 calculation
 - **Absolute Value** (ABS) - |x|
 - **Negate** (NEG) - Two's complement negation
 - **Exponential** (EXP) - e^x approximation
@@ -47,12 +51,14 @@ A complete, functional 8-bit CPU implementation in Verilog HDL with arithmetic, 
 - **Trigonometric** (SIN, COS, TAN) - Angle functions
 
 ### Memory Operations
+
 - **Load/Store** - Register to memory transfers
 - **Direct Addressing** - 8-bit addresses
 - **Immediate** - Literal values
 - **Stack Operations** - PUSH, PULL, PHA, PLA, PHX, PLX, PHY, PLY
 
 ### Control Flow
+
 - **Branching** - Conditional jumps (BEQ, BNE, BMI, BPL, BCS, BCC, BVS, BVC)
 - **Unconditional Branch** (BRA)
 - **Jump** (JMP) - Direct and indirect
@@ -60,33 +66,33 @@ A complete, functional 8-bit CPU implementation in Verilog HDL with arithmetic, 
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        CPU TOP LEVEL                         │
-├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    │
-│  │   Control   │◄──►│    ALU      │◄──►│   Register  │    │
-│  │    Unit     │    │             │    │    File     │    │
-│  └──────┬──────┘    └─────────────┘    └──────┬──────┘    │
-│         │                                      │           │
-│         │      ┌─────────────┐                 │           │
-│         └─────►│ Instruction │                 │           │
-│                │    Decode    │                 │           │
-│                └─────────────┘                 │           │
-│                                               │           │
-│  ┌────────────────────────────────────────────┴──────────┐ │
-│  │              16-bit Address Bus                         │ │
-│  │              8-bit Data Bus                              │ │
-│  └─────────────────────────────────────────────────────────┘ │
-│         │                          │                        │
-│         ▼                          ▼                        │
-│  ┌─────────────┐            ┌─────────────┐                │
-│  │     ROM     │            │     RAM     │                │
-│  │  (Program)  │            │   (Data)    │                │
-│  └─────────────┘            └─────────────┘                │
-└─────────────────────────────────────────────────────────────┘
++------------------------------------------------------------------+
+|                         CPU TOP LEVEL                             |
++------------------------------------------------------------------+
+|   +-------------+      +-------------+      +-------------+       |
+|   |   Control   |      |    ALU      |      |   Register  |       |
+|   |    Unit     |      |             |      |    File     |       |
+|   +------+------+      +-------------+      +------+------+       |
+|          |                                      |                |
+|          |      +-------------+                 |                |
+|          +----->| Instruction |                 |                |
+|                  |    Decode  |                 |                |
+|                  +-------------+                 |                |
+|                                                  |                |
+|   +------------------------------------------+    |                |
+|   |           16-bit Address Bus             |    |                |
+|   |            8-bit Data Bus                |    |                |
+|   +------------------------------------------+    |                |
+|          |                          |                 |                |
+|          v                          v                 |                |
+|   +-------------+            +-------------+        |                |
+|   |     ROM     |            |     RAM     |        |                |
+|   |  (Program)  |            |   (Data)    |        |                |
+|   +-------------+            +-------------+        |                |
++------------------------------------------------------------------+
 ```
 
 ### Components
@@ -126,7 +132,7 @@ A complete, functional 8-bit CPU implementation in Verilog HDL with arithmetic, 
 
 ---
 
-## 📁 File Structure
+## File Structure
 
 ```
 8-bit-cpu-using-verilog/
@@ -144,7 +150,7 @@ A complete, functional 8-bit CPU implementation in Verilog HDL with arithmetic, 
 
 ---
 
-## 📖 Instruction Set
+## Instruction Set
 
 ### Load/Store Instructions
 
@@ -168,8 +174,8 @@ A complete, functional 8-bit CPU implementation in Verilog HDL with arithmetic, 
 | `ADD dir` | 11 | Add Direct | C, Z, N, V |
 | `SUB #imm` | 12 | Subtract Immediate | C, Z, N, V |
 | `SUB dir` | 13 | Subtract Direct | C, Z, N, V |
-| `MUL` | 14 | Multiply (ACC × X) | Z, N |
-| `DIV` | 15 | Divide (ACC ÷ X) | Z, N |
+| `MUL` | 14 | Multiply (ACC x X) | Z, N |
+| `DIV` | 15 | Divide (ACC / X) | Z, N |
 | `INC` | 16 | Increment ACC | Z, N, V |
 | `DEC` | 17 | Decrement ACC | Z, N, V |
 | `ADC` | 18 | Add with Carry | C, Z, N, V |
@@ -247,7 +253,7 @@ A complete, functional 8-bit CPU implementation in Verilog HDL with arithmetic, 
 | Mnemonic | Opcode | Operation | Flags |
 |----------|--------|-----------|-------|
 | `SQRT` | 70 | Square Root | Z, N |
-| `SQUARE` | 71 | Square (x²) | Z, N |
+| `SQUARE` | 71 | Square (x2) | Z, N |
 | `ABS` | 72 | Absolute Value | Z, N |
 | `NEG` | 73 | Negate | Z, N |
 | `EXP` | 74 | Exponential (e^x) | Z, N |
@@ -266,7 +272,7 @@ A complete, functional 8-bit CPU implementation in Verilog HDL with arithmetic, 
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -306,20 +312,20 @@ run -all
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ### Testbench Coverage
 
-The testbench (`cpu_tb.v`) includes tests for:
+The testbench (cpu_tb.v) includes tests for:
 
-1. ✅ Reset functionality
-2. ✅ Load/Store operations
-3. ✅ Addition/Subtraction
-4. ✅ Logical operations (AND, OR, XOR, NOT)
-5. ✅ Increment/Decrement
-6. ✅ Register loads (X, Y)
-7. ✅ Memory operations
-8. ✅ Branch operations
+1. Reset functionality
+2. Load/Store operations
+3. Addition/Subtraction
+4. Logical operations (AND, OR, XOR, NOT)
+5. Increment/Decrement
+6. Register loads (X, Y)
+7. Memory operations
+8. Branch operations
 
 ### Running Specific Tests
 
@@ -334,7 +340,7 @@ Modify the testbench to enable/disable specific tests:
 
 ---
 
-## 📊 Performance
+## Performance
 
 ### Clock Frequency
 
@@ -361,22 +367,35 @@ The CPU is designed for synchronous operation with a single clock domain. Maximu
 
 ---
 
-## 🔬 Example Programs
+## Example Programs
 
 ### Program 1: Basic Calculator
 
 ```verilog
-// Calculate: (10 × 5) + 2 - 10 = 42
-LDA #10      // Load 10
-LDX #5       // Load 5
-MUL          // 10 × 5 = 50
-ADD #2       // 50 + 2 = 52
-SUB #10      // 52 - 10 = 42
-STA 0x20     // Store result
+// Calculate: (10 x 5) + 2 - 10 = 42
+LDA #10      // Load accumulator with 10
+LDX #5       // Load X with 5
+MUL          // A = A * X (50)
+ADD #2       // A = 50 + 2 = 52
+SUB #10      // A = 52 - 10 = 42
+STA 0x20     // Store result at 0x0020
 NOP          // Halt
 ```
 
-### Program 2: Fibonacci Sequence
+### Program 2: Temperature Conversion
+
+```verilog
+// Convert 25C to Fahrenheit: F = (25 x 9/5) + 32 = 77F
+LDA #25      // Load Celsius
+MUL          // Multiply by X (should be 9)
+ADD #5       // Adjust for 9/5
+DIV          // Divide by 5
+ADD #32      // Add 32
+STA 0x70     // Store Fahrenheit
+NOP          // Halt
+```
+
+### Program 3: Fibonacci Sequence
 
 ```verilog
 // Generate first 8 Fibonacci numbers
@@ -389,26 +408,13 @@ LDY #8       // count = 8
 // Loop...
 ```
 
-### Program 3: Temperature Conversion
-
-```verilog
-// Convert 25°C to Fahrenheit: F = (25 × 9/5) + 32 = 77°F
-LDA #25      // Load Celsius
-MUL          // Multiply by X (should be 9)
-ADD #5       // Adjust for 9/5
-DIV          // Divide by 5
-ADD #32      // Add 32
-STA 0x70     // Store Fahrenheit
-NOP          // Halt
-```
-
 ---
 
-## 🔧 Customization
+## Customization
 
 ### Modifying Instruction Set
 
-Edit `instructions.vh` to add or modify opcodes:
+Edit instructions.vh to add or modify opcodes:
 
 ```verilog
 // Add new opcode
@@ -419,7 +425,7 @@ Edit `instructions.vh` to add or modify opcodes:
 
 ### Changing Memory Sizes
 
-Edit `instructions.vh`:
+Edit instructions.vh:
 
 ```verilog
 `define RAM_SIZE   16'hXXXX  // New RAM size
@@ -428,21 +434,21 @@ Edit `instructions.vh`:
 
 ### Adding New Instructions
 
-1. Define opcode in `instructions.vh`
-2. Add FSM state in `control_unit.v`
-3. Add ALU operation in `alu.v`
-4. Add test case in `cpu_tb.v`
+1. Define opcode in instructions.vh
+2. Add FSM state in control_unit.v
+3. Add ALU operation in alu.v
+4. Add test case in cpu_tb.v
 
 ---
 
-## 📝 Technical Notes
+## Technical Notes
 
 ### Address Space
 
 ```
-0x0000 - 0x00FF  │  ROM (Program Memory)
-0x0100 - 0x01FF  │  Stack
-0x0200 - 0xFFFF  │  RAM (Data Memory)
+0x0000 - 0x00FF  |  ROM (Program Memory)
+0x0100 - 0x01FF  |  Stack
+0x0200 - 0xFFFF  |  RAM (Data Memory)
 ```
 
 ### Bus Widths
@@ -465,15 +471,15 @@ On reset:
 
 ---
 
-## 📚 References
+## References
 
-- [Verilog HDL Documentation](https://www.verilog.com/)
-- [Digital Design Fundamentals](https://en.wikipedia.org/wiki/Digital_electronics)
-- [CPU Design Principles](https://en.wikipedia.org/wiki/Central_processing_unit)
+- Verilog HDL Documentation: https://www.verilog.com/
+- Digital Design Fundamentals: https://en.wikipedia.org/wiki/Digital_electronics
+- CPU Design Principles: https://en.wikipedia.org/wiki/Central_processing_unit
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -483,16 +489,16 @@ On reset:
 
 ---
 
-## 📄 License
+## License
 
 This project is open source and available under the MIT License.
 
 ---
 
-## 👤 Author
+## Author
 
 Created for educational purposes to demonstrate CPU architecture and Verilog HDL programming.
 
 ---
 
-**Happy Computing!** 🖥️
+Happy Computing!
