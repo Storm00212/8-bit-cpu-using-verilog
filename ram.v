@@ -61,9 +61,6 @@ module ram (
         for (i = 0; i < 65536; i = i + 1) begin
             memory[i] = 8'h00;
         end
-        
-        // Memory is ready after initialization
-        ready <= 1'b1;
     end
 
     // =========================================================================
