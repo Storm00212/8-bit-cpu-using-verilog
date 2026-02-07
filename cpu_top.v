@@ -63,7 +63,7 @@ module cpu_top (
     wire [7:0] acc_reg, x_reg, y_reg;      // Register values
     wire [7:0] sp_reg, ir_reg, flags_reg; // Register values
     wire [15:0] pc_reg;                   // Program counter
-    wire [15:0] pc_current;               // Current PC value (registered)
+    reg [15:0] pc_current;               // Current PC value (registered)
     
     // -------------------- Memory Interface --------------------
     // These signals interface with ROM and RAM modules.
