@@ -25,21 +25,49 @@ module cpu_tb;
     wire mem_read;
     wire mem_write;
     
-    reg [7:0] ram [0:65535];
-    reg [7:0] rom [0:65535];
+    // Declare ROM and RAM arrays at testbench level
+    reg [7:0] rom_array [0:65535];
+    reg [7:0] ram_array [0:65535];
     reg [7:0] mem_data_out;
     
-    always @(addr_bus) begin
+    // Internal signals for ROM and RAM
+    wire [7:0] rom_data_out;
+    wire [7:0] ram_data_out;
+    
+    // ROM address and data
+    wire [15:0] rom_addr = addr_bus;
+    
+    // ROM module
+    rom rom_inst (
+        .addr(rom_addr),
+        .data_out(rom_data_out)
+    );
+    
+    // RAM module
+    ram ram_inst (
+        .clk(clk),
+        .reset(reset),
+        .addr(addr_bus),
+        .data_in(acc_out),
+        .write_enable(mem_write),
+        .read_enable(1'b0),  // RAM read handled by testbench
+        .data_out(ram_data_out),
+        .ready()
+    );
+    
+    always @(*) begin
         if (addr_bus < 16'h0100) begin
-            mem_data_out = rom[addr_bus];
+            mem_data_out = rom_array[addr_bus];
         end else begin
-            mem_data_out = ram[addr_bus];
+            mem_data_out = ram_array[addr_bus];
         end
     end
     
+    assign rom_data_out = rom_array[addr_bus];
+    
     always @(posedge clk) begin
-        if (mem_write) begin
-            ram[addr_bus] <= acc_out;
+        if (mem_write && addr_bus >= 16'h0100) begin
+            ram_array[addr_bus] <= acc_out;
         end
     end
     
@@ -60,7 +88,8 @@ module cpu_tb;
         .halt(halt)
     );
     
-    assign data_bus = (mem_read) ? mem_data_out : 8'bZ;
+    assign data_bus = (mem_write) ? acc_out : 
+                      (mem_data_out);
     
     integer clock_cycles = 0;
     integer i;
@@ -87,21 +116,22 @@ module cpu_tb;
                    flags_out, flags_out[0], flags_out[1], flags_out[2], flags_out[3]);
             
             $write("--- MEMORY ---\n");
-            $write("  ROM[0x%04h] = 0x%02h", addr_bus, rom[addr_bus]);
-            if (rom[addr_bus] == `OPCODE_NOP) $write("  [NOP]");
-            else if (rom[addr_bus] == `OPCODE_LDA_IMM) $write("  [LDA #imm]");
-            else if (rom[addr_bus] == `OPCODE_LDX_IMM) $write("  [LDX #imm]");
-            else if (rom[addr_bus] == `OPCODE_ADD_IMM) $write("  [ADD #imm]");
-            else if (rom[addr_bus] == `OPCODE_SUB_IMM) $write("  [SUB #imm]");
-            else if (rom[addr_bus] == `OPCODE_AND_IMM) $write("  [AND #imm]");
-            else if (rom[addr_bus] == `OPCODE_OR_IMM) $write("  [OR #imm]");
-            else if (rom[addr_bus] == `OPCODE_XOR_IMM) $write("  [XOR #imm]");
-            else if (rom[addr_bus] == `OPCODE_NOT) $write("  [NOT]");
-            else if (rom[addr_bus] == `OPCODE_INC) $write("  [INC]");
-            else if (rom[addr_bus] == `OPCODE_DEC) $write("  [DEC]");
-            else if (rom[addr_bus] == `OPCODE_BEQ) $write("  [BEQ]");
-            else if (rom[addr_bus] == `OPCODE_BNE) $write("  [BNE]");
-            else if (rom[addr_bus] == `OPCODE_BRA) $write("  [BRA]");
+            $write("  ROM[0x%04h] = 0x%02h", addr_bus, rom_array[addr_bus]);
+            if (rom_array[addr_bus] == `OPCODE_NOP) $write("  [NOP]");
+            else if (rom_array[addr_bus] == `OPCODE_LDA_IMM) $write("  [LDA #imm]");
+            else if (rom_array[addr_bus] == `OPCODE_LDX_IMM) $write("  [LDX #imm]");
+            else if (rom_array[addr_bus] == `OPCODE_LDY_IMM) $write("  [LDY #imm]");
+            else if (rom_array[addr_bus] == `OPCODE_ADD_IMM) $write("  [ADD #imm]");
+            else if (rom_array[addr_bus] == `OPCODE_SUB_IMM) $write("  [SUB #imm]");
+            else if (rom_array[addr_bus] == `OPCODE_AND_IMM) $write("  [AND #imm]");
+            else if (rom_array[addr_bus] == `OPCODE_OR_IMM) $write("  [OR #imm]");
+            else if (rom_array[addr_bus] == `OPCODE_XOR_IMM) $write("  [XOR #imm]");
+            else if (rom_array[addr_bus] == `OPCODE_NOT) $write("  [NOT]");
+            else if (rom_array[addr_bus] == `OPCODE_INC) $write("  [INC]");
+            else if (rom_array[addr_bus] == `OPCODE_DEC) $write("  [DEC]");
+            else if (rom_array[addr_bus] == `OPCODE_BEQ) $write("  [BEQ]");
+            else if (rom_array[addr_bus] == `OPCODE_BNE) $write("  [BNE]");
+            else if (rom_array[addr_bus] == `OPCODE_BRA) $write("  [BRA]");
             $write("\n");
             
             $write("\n");
@@ -121,36 +151,46 @@ module cpu_tb;
         clk = 0;
         reset = 0;
         
-        // Load test program
+        // Load test program into ROM array
         $write("Loading test program...\n\n");
-        rom[16'h0000] = `OPCODE_LDA_IMM;
-        rom[16'h0001] = 8'h55;
-        rom[16'h0002] = `OPCODE_LDX_IMM;
-        rom[16'h0003] = 8'hAA;
-        rom[16'h0004] = `OPCODE_ADD_IMM;
-        rom[16'h0005] = 8'h0A;
-        rom[16'h0006] = `OPCODE_SUB_IMM;
-        rom[16'h0007] = 8'h05;
-        rom[16'h0008] = `OPCODE_AND_IMM;
-        rom[16'h0009] = 8'hFF;
-        rom[16'h000A] = `OPCODE_OR_IMM;
-        rom[16'h000B] = 8'h0F;
-        rom[16'h000C] = `OPCODE_XOR_IMM;
-        rom[16'h000D] = 8'hFF;
-        rom[16'h000E] = `OPCODE_NOT;
-        rom[16'h000F] = `OPCODE_NOP;
-        for (i = 16'h0010; i < 16'h0100; i = i + 1) rom[i] = `OPCODE_NOP;
+        rom_array[16'h0000] = `OPCODE_LDA_IMM;
+        rom_array[16'h0001] = 8'h55;
+        rom_array[16'h0002] = `OPCODE_LDX_IMM;
+        rom_array[16'h0003] = 8'hAA;
+        rom_array[16'h0004] = `OPCODE_LDY_IMM;
+        rom_array[16'h0005] = 8'h33;
+        rom_array[16'h0006] = `OPCODE_ADD_IMM;
+        rom_array[16'h0007] = 8'h0A;
+        rom_array[16'h0008] = `OPCODE_SUB_IMM;
+        rom_array[16'h0009] = 8'h05;
+        rom_array[16'h000A] = `OPCODE_AND_IMM;
+        rom_array[16'h000B] = 8'hFF;
+        rom_array[16'h000C] = `OPCODE_OR_IMM;
+        rom_array[16'h000D] = 8'h0F;
+        rom_array[16'h000E] = `OPCODE_XOR_IMM;
+        rom_array[16'h000F] = 8'hFF;
+        rom_array[16'h0010] = `OPCODE_NOT;
+        rom_array[16'h0011] = `OPCODE_INC;
+        rom_array[16'h0012] = `OPCODE_DEC;
+        rom_array[16'h0013] = `OPCODE_NOP;
+        for (i = 16'h0014; i < 16'h0100; i = i + 1) rom_array[i] = `OPCODE_NOP;
+        
+        // Initialize RAM
+        for (i = 16'h0100; i < 16'hFFFF; i = i + 1) ram_array[i] = 8'h00;
         
         $write("Test Program:\n");
         $write("  0x0000: LDA #0x55  ; Load ACC = 85\n");
         $write("  0x0002: LDX #0xAA  ; Load X = 170\n");
-        $write("  0x0004: ADD #0x0A  ; ADD 10 to ACC\n");
-        $write("  0x0006: SUB #0x05  ; SUB 5 from ACC\n");
-        $write("  0x0008: AND #0xFF  ; AND with 255\n");
-        $write("  0x000A: OR  #0x0F  ; OR with 15\n");
-        $write("  0x000C: XOR #0xFF  ; XOR with 255\n");
-        $write("  0x000E: NOT        ; NOT ACC\n");
-        $write("  0x000F: NOP        ; Halt\n\n");
+        $write("  0x0004: LDY #0x33  ; Load Y = 51\n");
+        $write("  0x0006: ADD #0x0A  ; ADD 10 to ACC (85+10=95)\n");
+        $write("  0x0008: SUB #0x05  ; SUB 5 from ACC (95-5=90)\n");
+        $write("  0x000A: AND #0xFF  ; AND with 255 (90 & 255 = 90)\n");
+        $write("  0x000C: OR  #0x0F  ; OR with 15 (90 | 15 = 95)\n");
+        $write("  0x000E: XOR #0xFF  ; XOR with 255 (95 ^ 255 = 160)\n");
+        $write("  0x0010: NOT        ; NOT ACC (~160 = 95)\n");
+        $write("  0x0011: INC        ; INC ACC (95+1=96)\n");
+        $write("  0x0012: DEC        ; DEC ACC (96-1=95)\n");
+        $write("  0x0013: NOP        ; Halt\n\n");
         
         // Reset
         for (i = 0; i < 80; i = i + 1) $write("-");
@@ -169,7 +209,7 @@ module cpu_tb;
         for (i = 0; i < 80; i = i + 1) $write("-");
         $write("\n");
         
-        repeat (20) begin
+        repeat (25) begin
             @(posedge clk);
             #1;
             print_state("EXECUTE");
@@ -180,6 +220,9 @@ module cpu_tb;
         $write("\n");
         $write("SIMULATION COMPLETE\n");
         $write("Total clock cycles: %0d\n", clock_cycles);
+        $write("Final ACC value: 0x%02h\n", acc_out);
+        $write("Final X value: 0x%02h\n", x_out);
+        $write("Final Y value: 0x%02h\n", y_out);
         for (i = 0; i < 80; i = i + 1) $write("=");
         $write("\n\n");
         
