@@ -3,74 +3,62 @@
 // ============================================================================
 // 
 // The CPU Top-Level Module integrates all the individual components of the
-// 8-bit CPU into a complete, functional processor. It provides the external
-// interface and handles the interconnection between components.
-// 
-// Component Connections:
-// - Control Unit orchestrates all operations
-// - Register File stores CPU state
-// - ALU performs calculations
-// - External ROM for program code
-// - External RAM for data
-// 
-// Bus Architecture:
-// - 8-bit bidirectional data bus
-// - 16-bit unidirectional address bus
+// 8-bit CPU into a complete, functional processor.
 // ============================================================================
 
 `include "instructions.vh"
 
 module cpu_top (
     // External Interface
-    input wire clk,           // System clock - all operations synchronous
-    input wire reset,         // Asynchronous reset - initializes CPU
+    input wire clk,           
+    input wire reset,         
     
     // Bus Interface
-    inout wire [7:0] data_bus,      // 8-bit bidirectional data bus
-    output wire [15:0] addr_bus,     // 16-bit address bus (output only)
-    output wire mem_read,            // Memory read enable
-    output wire mem_write,           // Memory write enable
+    inout wire [7:0] data_bus,      
+    output wire [15:0] addr_bus,     
+    output wire mem_read,            
+    output wire mem_write,           
+    output wire halt,
     
     // Debug/Status Outputs
-    output wire [7:0] acc_out,      // Accumulator value (debug)
-    output wire [15:0] pc_out,      // Program counter value (debug)
-    output wire [7:0] flags_out,     // Flags register (debug)
-    output wire [7:0] x_out,         // X register value (debug)
-    output wire [7:0] y_out,         // Y register value (debug)
-    output wire halt                 // CPU halt status
+    output wire [7:0] acc_out,      
+    output wire [15:0] pc_out,      
+    output wire [7:0] flags_out,     
+    output wire [7:0] x_out,         
+    output wire [7:0] y_out,
+    
+    // Debug signals (for monitoring)
+    output wire [7:0] debug_rom_data,
+    output wire [7:0] debug_data_bus_in
 );
 
     // =========================================================================
     // Signal Declarations
     // =========================================================================
     
-    // -------------------- Control Signals --------------------
-    wire acc_write, x_write, y_write;      // Register write enables
-    wire pc_write, pc_inc, pc_load;       // PC control signals
-    wire sp_write, ir_write, flags_write;  // Register write enables
-    wire alu_done;                          // ALU operation complete
-    wire done;                              // Instruction complete
-    wire [3:0] alu_operation;              // ALU operation code
-    wire [15:0] pc_direct;                 // Direct PC value for jumps
+    wire acc_write, x_write, y_write;
+    wire pc_write, pc_inc, pc_load;
+    wire sp_write, ir_write, flags_write;
+    wire alu_done;
+    wire done;
+    wire [3:0] alu_operation;
+    wire [15:0] pc_direct;
     
-    // -------------------- Data Signals --------------------
-    wire [7:0] acc_reg, x_reg, y_reg;      // Register values
-    wire [7:0] sp_reg, ir_reg, flags_reg; // Register values
-    wire [15:0] pc_reg;                   // Program counter
-    reg [15:0] pc_current;               // Current PC value (registered)
+    wire [7:0] acc_reg, x_reg, y_reg;
+    wire [7:0] sp_reg, ir_reg, flags_reg;
+    wire [15:0] pc_reg;
+    reg [15:0] pc_current;
     
-    // -------------------- Memory Interface --------------------
-    wire [7:0] rom_data_out;              // ROM data output
-    wire [7:0] ram_data_out;              // RAM data output
-    wire [15:0] mem_addr;                  // Memory address
-    wire internal_mem_read;               // Internal memory read (before address decode)
+    wire [7:0] rom_data_out;
+    wire [7:0] ram_data_out;
+    wire [15:0] mem_addr;
+    wire internal_mem_read;
     
-    // -------------------- ALU Signals --------------------
-    wire [7:0] alu_result;                 // ALU result output
-    wire [7:0] alu_flags;                  // ALU flags output
+    wire [7:0] alu_result;
+    wire [7:0] alu_flags;
     
     // =========================================================================
-    // PC Register - Captures PC value for control unit
+    // PC Register
     // =========================================================================
     always @(posedge clk or posedge reset) begin
         if (reset) begin
@@ -84,7 +72,6 @@ module cpu_top (
     // Module Instantiations
     // =========================================================================
     
-    // -------------------- Register File --------------------
     register_file reg_file (
         .clk(clk),
         .reset(reset),
@@ -109,7 +96,6 @@ module cpu_top (
         .addr_bus(addr_bus)
     );
     
-    // -------------------- ALU (Arithmetic Logic Unit) --------------------
     alu alu_unit (
         .clk(clk),
         .reset(reset),
@@ -121,7 +107,6 @@ module cpu_top (
         .done(alu_done)
     );
     
-    // -------------------- Control Unit --------------------
     control_unit cu (
         .clk(clk),
         .reset(reset),
@@ -151,20 +136,18 @@ module cpu_top (
     // Memory Interface Logic
     // =========================================================================
     
-    // -------------------- Memory Source Selection --------------------
-    // ROM is accessed for addresses in the first 256 bytes (0x0000-0x00FF)
-    // RAM is accessed for all other addresses (0x0100-0xFFFF)
-    
     wire select_rom = (addr_bus[15:8] == 8'h00) && internal_mem_read;
     wire select_ram = (addr_bus[15:8] != 8'h00) && internal_mem_read;
     
-    // -------------------- Memory Read Enable --------------------
     assign mem_read = internal_mem_read;
     
-    // -------------------- Data Bus Multiplexer --------------------
-    // Drive data bus from ROM or RAM based on address
+    // Data bus driver
     assign data_bus = select_rom ? rom_data_out :
                       select_ram ? ram_data_out : 8'hZZ;
+    
+    // Debug outputs
+    assign debug_rom_data = rom_data_out;
+    assign debug_data_bus_in = data_bus;
     
     // =========================================================================
     // Output Assignments
@@ -175,8 +158,6 @@ module cpu_top (
     assign flags_out = flags_reg;
     assign x_out = x_reg;
     assign y_out = y_reg;
-    
-    // The CPU runs continuously in this implementation
     assign halt = 1'b0;
     
     // =========================================================================
@@ -185,12 +166,13 @@ module cpu_top (
     
     always @(posedge clk) begin
         if (reset) begin
-            $display("CPU Reset - PC=%h, ACC=%h, X=%h, Y=%h, FLAGS=%h", 
-                     pc_reg, acc_reg, x_reg, y_reg, flags_reg);
+            $display("CPU Reset");
         end else begin
             if (done) begin
-                $display("PC=%h: opcode=%h, ACC=%h, X=%h, Y=%h, FLAGS=%h",
-                         pc_reg, data_bus, acc_reg, x_reg, y_reg, flags_reg);
+                $display("PC=%h: opcode=%h, ACC=%h, X=%h, Y=%h", 
+                         pc_reg, data_bus, acc_reg, x_reg, y_reg);
+                $display("  DEBUG: rom_data=%h, sel_rom=%b, mem_read=%b", 
+                         rom_data_out, select_rom, internal_mem_read);
             end
         end
     end
