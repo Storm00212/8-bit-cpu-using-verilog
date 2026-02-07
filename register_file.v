@@ -50,8 +50,9 @@ module register_file (
     // Program Counter control signals
     input wire pc_write,         // Enable write to PC (for jumps)
     input wire pc_inc,           // Increment PC (for sequential execution)
-    input wire pc_load,          // Load PC from data bus (for relative branches)
+    input wire pc_load,         // Load PC from data bus (for relative branches)
     input wire [15:0] pc_direct, // Direct PC value (high byte for jumps)
+    output reg [15:0] pc_out,   // Program counter output
     
     // Address bus output
     output reg [15:0] addr_bus   // Current address on the address bus
