@@ -25,11 +25,7 @@ module cpu_top (
     output wire [15:0] pc_out,      
     output wire [7:0] flags_out,     
     output wire [7:0] x_out,         
-    output wire [7:0] y_out,
-    
-    // Debug signals (for monitoring)
-    output wire [7:0] debug_rom_data,
-    output wire [7:0] debug_data_bus_in
+    output wire [7:0] y_out
 );
 
     // =========================================================================
@@ -49,8 +45,6 @@ module cpu_top (
     wire [15:0] pc_reg;
     reg [15:0] pc_current;
     
-    wire [7:0] rom_data_out;
-    wire [7:0] ram_data_out;
     wire [15:0] mem_addr;
     wire internal_mem_read;
     
@@ -136,18 +130,8 @@ module cpu_top (
     // Memory Interface Logic
     // =========================================================================
     
-    wire select_rom = (addr_bus[15:8] == 8'h00) && internal_mem_read;
-    wire select_ram = (addr_bus[15:8] != 8'h00) && internal_mem_read;
-    
     assign mem_read = internal_mem_read;
-    
-    // Data bus driver
-    assign data_bus = select_rom ? rom_data_out :
-                      select_ram ? ram_data_out : 8'hZZ;
-    
-    // Debug outputs
-    assign debug_rom_data = rom_data_out;
-    assign debug_data_bus_in = data_bus;
+    assign addr_bus = mem_addr;
     
     // =========================================================================
     // Output Assignments
@@ -171,8 +155,6 @@ module cpu_top (
             if (done) begin
                 $display("PC=%h: opcode=%h, ACC=%h, X=%h, Y=%h", 
                          pc_reg, data_bus, acc_reg, x_reg, y_reg);
-                $display("  DEBUG: rom_data=%h, sel_rom=%b, mem_read=%b", 
-                         rom_data_out, select_rom, internal_mem_read);
             end
         end
     end
