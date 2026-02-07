@@ -57,15 +57,13 @@ module cpu_top (
     wire [3:0] alu_operation;              // ALU operation code
     wire [15:0] pc_direct;                 // Direct PC value for jumps
     
-    wire [7:0] opcode_out;                 // Opcode output
-    wire [7:0] opcode_to_cu;               // Opcode to control unit
-    
     // -------------------- Data Signals --------------------
     // These signals carry data between CPU components.
     
     wire [7:0] acc_reg, x_reg, y_reg;      // Register values
     wire [7:0] sp_reg, ir_reg, flags_reg; // Register values
     wire [15:0] pc_reg;                   // Program counter
+    wire [15:0] pc_current;               // Current PC value (registered)
     
     // -------------------- Memory Interface --------------------
     // These signals interface with ROM and RAM modules.
@@ -80,6 +78,17 @@ module cpu_top (
     // -------------------- ALU Signals --------------------
     wire [7:0] alu_result;                 // ALU result output
     wire [7:0] alu_flags;                  // ALU flags output
+    
+    // =========================================================================
+    // PC Register - Captures PC value for control unit
+    // =========================================================================
+    always @(posedge clk or posedge reset) begin
+        if (reset) begin
+            pc_current <= 16'd0;
+        end else begin
+            pc_current <= pc_reg;
+        end
+    end
     
     // =========================================================================
     // Module Instantiations
@@ -164,7 +173,6 @@ module cpu_top (
     //
     // Outputs:
     //   - Various control signals to other components
-    //   - opcode_out: Opcode for other modules
     //   - done: Instruction complete
     
     control_unit cu (
@@ -174,8 +182,7 @@ module cpu_top (
         .flags_in(flags_reg),
         .alu_done(alu_done),
         .data_bus(data_bus),
-        .pc_current(pc_reg),
-        .opcode_out(opcode_out),
+        .pc_current(pc_current),
         .alu_operation(alu_operation),
         .acc_write(acc_write),
         .x_write(x_write),
