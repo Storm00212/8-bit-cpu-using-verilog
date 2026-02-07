@@ -1,25 +1,9 @@
 // ============================================================================
-// CPU Testbench
+// CPU Testbench - Simple Version
 // ============================================================================
 // 
-// This testbench provides comprehensive verification of the 8-bit CPU
-// by testing all major instructions and functionality. It includes:
-// 
-// - Test tasks for individual instructions
-// - Automated test sequence
-// - Pass/fail counting and reporting
-// - Simulation monitoring
-// 
-// Test Coverage:
-// 1. Reset functionality
-// 2. Load/Store operations
-// 3. Arithmetic operations (ADD, SUB, MUL, DIV)
-// 4. Logical operations (AND, OR, XOR, NOT)
-// 5. Shift/Rotate operations
-// 6. Increment/Decrement
-// 7. Register operations (X, Y)
-// 8. Memory operations
-// 9. Branch operations
+// This testbench verifies basic CPU functionality by testing individual
+// instructions in sequence without infinite loops.
 // ============================================================================
 
 `timescale 1ns/1ps
@@ -28,47 +12,43 @@
 
 module cpu_tb;
     
-    // =========================================================================
-    // Testbench Signals
-    // =========================================================================
+    // Testbench signals
+    reg clk;
+    reg reset;
+    wire [7:0] data_bus;
+    wire [15:0] addr_bus;
+    wire mem_read;
+    wire mem_write;
+    wire [7:0] acc_out;
+    wire [15:0] pc_out;
+    wire [7:0] flags_out;
+    wire [7:0] x_out;
+    wire [7:0] y_out;
+    wire halt;
     
-    // CPU interface signals
-    reg clk;                      // System clock
-    reg reset;                    // Reset signal
+    // Memory
+    reg [7:0] ram [0:65535];
+    reg [7:0] rom [0:65535];
+    reg [7:0] mem_data_out;
     
-    wire [7:0] data_bus;         // Bidirectional data bus
-    wire [15:0] addr_bus;        // Address bus
-    wire mem_read;               // Memory read enable
-    wire mem_write;              // Memory write enable
+    always @(addr_bus) begin
+        if (addr_bus < 16'h0100) begin
+            mem_data_out = rom[addr_bus];
+        end else begin
+            mem_data_out = ram[addr_bus];
+        end
+    end
     
-    // Debug outputs
-    wire [7:0] acc_out;          // Accumulator
-    wire [15:0] pc_out;         // Program counter
-    wire [7:0] flags_out;        // Flags register
-    wire [7:0] x_out;           // X register
-    wire [7:0] y_out;           // Y register
-    wire halt;                   // Halt signal
+    always @(posedge clk) begin
+        if (mem_write) begin
+            ram[addr_bus] <= acc_out;
+        end
+    end
     
-    // =========================================================================
-    // Simulation Counters
-    // =========================================================================
+    // Clock
+    always #5 clk = ~clk;
     
-    integer test_count;          // Total tests executed
-    integer pass_count;          // Tests passed
-    integer fail_count;          // Tests failed
-    
-    // =========================================================================
-    // Clock Generation
-    // =========================================================================
-    // Generate a 100MHz clock (10ns period).
-    // All CPU operations are synchronous to this clock.
-    
-    always #5 clk = ~clk;  // Toggle clock every 5ns
-    
-    // =========================================================================
-    // CPU Instance
-    // =========================================================================
-    
+    // CPU
     cpu_top cpu (
         .clk(clk),
         .reset(reset),
@@ -84,191 +64,211 @@ module cpu_tb;
         .halt(halt)
     );
     
-    // =========================================================================
-    // Memory Model
-    // =========================================================================
-    // Simple memory model that simulates ROM and RAM behavior
-    // for the testbench.
+    // Data bus driver
+    assign data_bus = (mem_read) ? mem_data_out : 8'hZZ;
     
-    reg [7:0] ram [0:65535];     // RAM array
-    reg [7:0] rom [0:65535];     // ROM array
-    reg [7:0] mem_data_out;      // Memory data output
+    integer passed = 0;
+    integer failed = 0;
     
-    // Memory read - combinational
-    always @(addr_bus) begin
-        if (addr_bus < 16'h0100) begin
-            mem_data_out = rom[addr_bus];
-        end else begin
-            mem_data_out = ram[addr_bus];
-        end
-    end
-    
-    // Memory write - synchronous
-    always @(posedge clk) begin
-        if (mem_write) begin
-            ram[addr_bus] <= acc_out;
-        end
-    end
-    
-    // =========================================================================
-    // ROM Initialization
-    // =========================================================================
-    // Initialize ROM with a test program that demonstrates
-    // basic CPU operations.
-    
-    initial begin
-        // ROM at 0x0000: LDA #10
-        rom[16'h0000] = `OPCODE_LDA_IMM;
-        rom[16'h0001] = 8'h0A;            // Immediate value 10
-        
-        // ROM at 0x0002: LDX #5
-        rom[16'h0002] = `OPCODE_LDX_IMM;
-        rom[16'h0003] = 8'h05;            // Immediate value 5
-        
-        // ROM at 0x0004: ADD #3
-        rom[16'h0004] = `OPCODE_ADD_IMM;
-        rom[16'h0005] = 8'h03;            // Immediate value 3
-        
-        // ROM at 0x0006: SUB #2
-        rom[16'h0006] = `OPCODE_SUB_IMM;
-        rom[16'h0007] = 8'h02;            // Immediate value 2
-        
-        // ROM at 0x0008: INC
-        rom[16'h0008] = `OPCODE_INC;
-        
-        // ROM at 0x0009: DEC
-        rom[16'h0009] = `OPCODE_DEC;
-        
-        // ROM at 0x000A: MUL
-        rom[16'h000A] = `OPCODE_MUL;
-        
-        // ROM at 0x000B: NOP
-        rom[16'h000B] = `OPCODE_NOP;
-        
-        // Fill rest of ROM with NOP
-        for (integer i = 16'h000C; i < 16'h0100; i = i + 1) begin
-            rom[i] = `OPCODE_NOP;
-        end
-    end
-    
-    // =========================================================================
-    // Test Tasks
-    // =========================================================================
-    // These tasks provide reusable test routines for verifying
-    // specific CPU functionality.
-    
-    // Test CPU reset
-    task test_reset;
-        begin
-            test_count = test_count + 1;
-            reset = 1'b1;
-            @(posedge clk) #1;
-            reset = 1'b0;
-            @(posedge clk) #10;
-            
-            if (acc_out == 8'h00 && pc_out == 16'h0000) begin
-                $display("PASS: Reset test %0d", test_count);
-                pass_count = pass_count + 1;
-            end else begin
-                $display("FAIL: Reset test %0d - ACC=%h, PC=%h", 
-                         test_count, acc_out, pc_out);
-                fail_count = fail_count + 1;
-            end
-        end
-    endtask
-    
-    // Test load/store operations
-    task test_load_store;
-        input [7:0] test_value;
-        input [7:0] mem_addr;
-        begin
-            test_count = test_count + 1;
-            
-            // Write value to RAM
-            ram[mem_addr] = test_value;
-            
-            // Load from RAM and verify
-            @(posedge clk);
-            #10;
-            
-            if (acc_out == test_value) begin
-                $display("PASS: Load/Store test %0d - Value=%h", 
-                         test_count, test_value);
-                pass_count = pass_count + 1;
-            end else begin
-                $display("FAIL: Load/Store test %0d - Expected=%h, Got=%h", 
-                         test_count, test_value, acc_out);
-                fail_count = fail_count + 1;
-            end
-        end
-    endtask
-    
-    // Test addition operation
-    task test_addition;
-        input [7:0] a, b;
-        input [7:0] expected_result;
-        begin
-            test_count = test_count + 1;
-            
-            // Perform addition
-            @(posedge clk);
-            #10;
-            
-            if (acc_out == expected_result) begin
-                $display("PASS: Addition test %0d - %0d + %0d = %0d", 
-                         test_count, a, b, expected_result);
-                pass_count = pass_count + 1;
-            end else begin
-                $display("FAIL: Addition test %0d - %0d + %0d = %0d, Expected=%h",
-                         test_count, a, b, expected_result, acc_out);
-                fail_count = fail_count + 1;
-            end
-        end
-    endtask
-    
-    // Test subtraction operation
-    task test_subtraction;
-        input [7:0] a, b;
-        input [7:0] expected_result;
-        begin
-            test_count = test_count + 1;
-            
-            // Perform subtraction
-            @(posedge clk);
-            #10;
-            
-            if (acc_out == expected_result) begin
-                $display("PASS: Subtraction test %0d - %0d - %0d = %0d", 
-                         test_count, a, b, expected_result);
-                pass_count = pass_count + 1;
-            end else begin
-                $display("FAIL: Subtraction test %0d - Expected=%h, Got=%h",
-                         test_count, expected_result, acc_out);
-                fail_count = fail_count + 1;
-            end
-        end
-    endtask
-    
-    // Test logical operations
-    task test_logical;
-        input [7:0] a, b;
-        input [2:0] operation;   // 0=AND, 1=OR, 2=XOR
+    task test_op;
+        input [7:0] opcode;
+        input [7:0] operand;
         input [7:0] expected;
+        input [80:0] name;
         begin
-            test_count = test_count + 1;
+            rom[16'h0000] = opcode;
+            rom[16'h0001] = operand;
+            rom[16'h0002] = 8'h00;  // NOP to stop
             
-            @(posedge clk);
-            #10;
+            reset = 1;
+            @(posedge clk) #1;
+            reset = 0;
+            
+            @(posedge clk) #10;  // Execute opcode
+            @(posedge clk) #10;  // Execute operand fetch
             
             if (acc_out == expected) begin
-                $display("PASS: Logical test %0d", test_count);
-                pass_count = pass_count + 1;
+                $display("PASS: %s", name);
+                passed = passed + 1;
             end else begin
-                $display("FAIL: Logical test %0d - Expected=%h, Got=%h",
-                         test_count, expected, acc_out);
-                fail_count = fail_count + 1;
+                $display("FAIL: %s - Expected 0x%02h, Got 0x%02h", name, expected, acc_out);
+                failed = failed + 1;
             end
         end
+    endtask
+    
+    initial begin
+        clk = 0;
+        reset = 0;
+        
+        $display("========================================");
+        $display("8-bit CPU Testbench");
+        $display("========================================");
+        
+        #100;
+        
+        // Test LDA immediate
+        rom[16'h0000] = `OPCODE_LDA_IMM;
+        rom[16'h0001] = 8'h55;
+        rom[16'h0002] = 8'h00;
+        
+        reset = 1;
+        @(posedge clk) #1;
+        reset = 0;
+        @(posedge clk) #20;
+        
+        if (acc_out == 8'h55) begin
+            $display("PASS: LDA #immediate");
+            passed = passed + 1;
+        end else begin
+            $display("FAIL: LDA #immediate - Expected 55, Got %h", acc_out);
+            failed = failed + 1;
+        end
+        
+        // Test ADD immediate
+        rom[16'h0000] = `OPCODE_LDA_IMM;
+        rom[16'h0001] = 8'h0A;
+        rom[16'h0002] = `OPCODE_ADD_IMM;
+        rom[16'h0003] = 8'h05;
+        rom[16'h0004] = 8'h00;
+        
+        @(posedge clk) #20;
+        
+        if (acc_out == 8'h0F) begin
+            $display("PASS: ADD immediate (10 + 5 = 15)");
+            passed = passed + 1;
+        end else begin
+            $display("FAIL: ADD immediate - Expected 0F, Got %h", acc_out);
+            failed = failed + 1;
+        end
+        
+        // Test SUB immediate
+        rom[16'h0000] = `OPCODE_LDA_IMM;
+        rom[16'h0001] = 8'h0A;
+        rom[16'h0002] = `OPCODE_SUB_IMM;
+        rom[16'h0003] = 8'h03;
+        rom[16'h0004] = 8'h00;
+        
+        @(posedge clk) #20;
+        
+        if (acc_out == 8'h07) begin
+            $display("PASS: SUB immediate (10 - 3 = 7)");
+            passed = passed + 1;
+        end else begin
+            $display("FAIL: SUB immediate - Expected 07, Got %h", acc_out);
+            failed = failed + 1;
+        end
+        
+        // Test AND immediate
+        rom[16'h0000] = `OPCODE_LDA_IMM;
+        rom[16'h0001] = 8'hFF;
+        rom[16'h0002] = `OPCODE_AND_IMM;
+        rom[16'h0003] = 8'h0F;
+        rom[16'h0004] = 8'h00;
+        
+        @(posedge clk) #20;
+        
+        if (acc_out == 8'h0F) begin
+            $display("PASS: AND immediate (FF & 0F = 0F)");
+            passed = passed + 1;
+        end else begin
+            $display("FAIL: AND immediate - Expected 0F, Got %h", acc_out);
+            failed = failed + 1;
+        end
+        
+        // Test OR immediate
+        rom[16'h0000] = `OPCODE_LDA_IMM;
+        rom[16'h0001] = 8'h0F;
+        rom[16'h0002] = `OPCODE_OR_IMM;
+        rom[16'h0003] = 8'hF0;
+        rom[16'h0004] = 8'h00;
+        
+        @(posedge clk) #20;
+        
+        if (acc_out == 8'hFF) begin
+            $display("PASS: OR immediate (0F | F0 = FF)");
+            passed = passed + 1;
+        end else begin
+            $display("FAIL: OR immediate - Expected FF, Got %h", acc_out);
+            failed = failed + 1;
+        end
+        
+        // Test XOR immediate
+        rom[16'h0000] = `OPCODE_LDA_IMM;
+        rom[16'h0001] = 8'hFF;
+        rom[16'h0002] = `OPCODE_XOR_IMM;
+        rom[16'h0003] = 8'hFF;
+        rom[16'h0004] = 8'h00;
+        
+        @(posedge clk) #20;
+        
+        if (acc_out == 8'h00) begin
+            $display("PASS: XOR immediate (FF ^ FF = 00)");
+            passed = passed + 1;
+        end else begin
+            $display("FAIL: XOR immediate - Expected 00, Got %h", acc_out);
+            failed = failed + 1;
+        end
+        
+        // Test NOT
+        rom[16'h0000] = `OPCODE_LDA_IMM;
+        rom[16'h0001] = 8'h00;
+        rom[16'h0002] = `OPCODE_NOT;
+        rom[16'h0003] = 8'h00;
+        
+        @(posedge clk) #20;
+        
+        if (acc_out == 8'hFF) begin
+            $display("PASS: NOT (~00 = FF)");
+            passed = passed + 1;
+        end else begin
+            $display("FAIL: NOT - Expected FF, Got %h", acc_out);
+            failed = failed + 1;
+        end
+        
+        // Test INC
+        rom[16'h0000] = `OPCODE_LDA_IMM;
+        rom[16'h0001] = 8'h7F;
+        rom[16'h0002] = `OPCODE_INC;
+        rom[16'h0003] = 8'h00;
+        
+        @(posedge clk) #20;
+        
+        if (acc_out == 8'h80) begin
+            $display("PASS: INC (7F + 1 = 80)");
+            passed = passed + 1;
+        end else begin
+            $display("FAIL: INC - Expected 80, Got %h", acc_out);
+            failed = failed + 1;
+        end
+        
+        // Test DEC
+        rom[16'h0000] = `OPCODE_LDA_IMM;
+        rom[16'h0001] = 8'h80;
+        rom[16'h0002] = `OPCODE_DEC;
+        rom[16'h0003] = 8'h00;
+        
+        @(posedge clk) #20;
+        
+        if (acc_out == 8'h7F) begin
+            $display("PASS: DEC (80 - 1 = 7F)");
+            passed = passed + 1;
+        end else begin
+            $display("FAIL: DEC - Expected 7F, Got %h", acc_out);
+            failed = failed + 1;
+        end
+        
+        // Test LDX
+        rom[16'h0000] = `OPCODE_LDX_IMM;
+        rom[16'h0001] = 8'hAB;
+        rom[16'h0002] = 8'h00;
+        
+        @(posedge clk) #20;
+        
+        if (x_out == 8'hAB) begin
+            $display("PASS: LDX #immediate");
+            passed = passed + 1;
+        end else begin
     endtask
     
     // Test shift operations
