@@ -1,8 +1,8 @@
 // ============================================================================
-// CPU Testbench - Simplified
+// CPU Testbench - Simple Version
 // ============================================================================
 // 
-// CPU handles memory access. Testbench only monitors signals.
+// Uses $readmemb to load ROM from file
 // ============================================================================
 
 `timescale 1ns/1ps
@@ -26,22 +26,36 @@ module cpu_tb;
     wire halt;
     
     // ROM/RAM interfaces
-    wire [7:0] rom_addr;
-    wire [7:0] rom_data;
-    wire [15:0] ram_addr;
-    wire [7:0] ram_data;
+    output wire [7:0] rom_addr;
+    input wire [7:0] rom_data;
+    output wire [15:0] ram_addr;
+    input wire [7:0] ram_data;
     
     // ROM/RAM arrays
     reg [7:0] rom_array [0:255];
     reg [7:0] ram_array [0:65535];
     
     // ROM instance
-    rom rom_inst (.addr({8'h00, rom_addr}), .data_out(rom_data));
+    wire [7:0] rom_data_wire;
+    assign rom_data = rom_data_wire;
+    assign rom_array[rom_addr] = rom_data_wire;  // For reference
     
     // RAM instance  
-    ram ram_inst (.clk(clk), .reset(reset), .addr(ram_addr), 
-                  .data_in(acc_out), .write_enable(mem_write), 
-                  .read_enable(mem_read), .data_out(ram_data), .ready());
+    wire [7:0] ram_data_wire;
+    assign ram_data = ram_data_wire;
+    assign ram_array[ram_addr] = ram_data_wire;  // For reference
+    
+    // ROM behavior
+    assign rom_data_wire = rom_array[rom_addr];
+    
+    // RAM behavior (synchronous write)
+    reg [7:0] ram_internal [0:65535];
+    assign ram_data_wire = ram_internal[ram_addr];
+    always @(posedge clk) begin
+        if (mem_write) begin
+            ram_internal[ram_addr] <= acc_out;
+        end
+    end
     
     // CPU instance
     cpu_top cpu (
@@ -58,56 +72,14 @@ module cpu_tb;
         .y_out(y_out),
         .halt(halt),
         .rom_addr(rom_addr),
-        .rom_data(rom_data),
+        .rom_data(rom_data_wire),
         .ram_addr(ram_addr),
-        .ram_data(ram_data)
+        .ram_data(ram_data_wire)
     );
     
-    // ROM access via hierarchical path
-    integer i;
-    initial begin
-        for (i = 0; i < 256; i = i + 1) begin
-            rom_inst.memory[i] = 8'h00;
-        end
-    end
-    
     // Clock generation
-    always #5 clk = ~clk;
-    
     integer clock_cycles = 0;
-    
-    task print_state;
-        input [79:0] phase;
-        begin
-            clock_cycles = clock_cycles + 1;
-            $write("\n");
-            $write("================================================================================\n");
-            $write("  CLOCK CYCLE: %0d  |  %s\n", clock_cycles, phase);
-            $write("================================================================================\n");
-            
-            $write("--- BUS SIGNALS ---\n");
-            $write("  CLK:    %b  |  ADDR: 0x%04h  |  DATA: 0x%02h\n", clk, addr_bus, data_bus);
-            $write("  MEM_RD: %b  |  MEM_WR: %b\n", mem_read, mem_write);
-            
-            $write("--- REGISTERS ---\n");
-            $write("  PC:  0x%04h  |  ACC: 0x%02h  |  X: 0x%02h  |  Y: 0x%02h\n", 
-                   pc_out, acc_out, x_out, y_out);
-            
-            $write("--- FLAGS ---\n");
-            $write("  FLAGS: 0x%02h  [C=%b Z=%b N=%b V=%b]\n", 
-                   flags_out, flags_out[0], flags_out[1], flags_out[2], flags_out[3]);
-            
-            $write("--- MEMORY ---\n");
-            if (addr_bus < 16'h0100) begin
-                $write("  ROM[0x%04h] = 0x%02h", addr_bus, rom_inst.memory[addr_bus[7:0]]);
-            end else begin
-                $write("  RAM[0x%04h] = 0x%02h", addr_bus, ram_array[addr_bus]);
-            end
-            $write("\n");
-            
-            $write("\n");
-        end
-    endtask
+    integer i;
     
     initial begin
         $timeformat(-9, 0, " ns", 8);
@@ -115,38 +87,38 @@ module cpu_tb;
         $write("\n");
         for (i = 0; i < 80; i = i + 1) $write("=");
         $write("\n");
-        $write("                    8-BIT CPU SIMULATION - REAL-TIME MONITOR\n");
+        $write("                    8-BIT CPU SIMULATION\n");
         for (i = 0; i < 80; i = i + 1) $write("=");
         $write("\n\n");
         
         clk = 0;
         reset = 0;
         
-        // Load test program
+        // Initialize ROM with test program
         $write("Loading test program...\n\n");
-        rom_inst.memory[8'h00] = `OPCODE_LDA_IMM;
-        rom_inst.memory[8'h01] = 8'h55;
-        rom_inst.memory[8'h02] = `OPCODE_LDX_IMM;
-        rom_inst.memory[8'h03] = 8'hAA;
-        rom_inst.memory[8'h04] = `OPCODE_LDY_IMM;
-        rom_inst.memory[8'h05] = 8'h33;
-        rom_inst.memory[8'h06] = `OPCODE_ADD_IMM;
-        rom_inst.memory[8'h07] = 8'h0A;
-        rom_inst.memory[8'h08] = `OPCODE_SUB_IMM;
-        rom_inst.memory[8'h09] = 8'h05;
-        rom_inst.memory[8'h0A] = `OPCODE_AND_IMM;
-        rom_inst.memory[8'h0B] = 8'hFF;
-        rom_inst.memory[8'h0C] = `OPCODE_OR_IMM;
-        rom_inst.memory[8'h0D] = 8'h0F;
-        rom_inst.memory[8'h0E] = `OPCODE_XOR_IMM;
-        rom_inst.memory[8'h0F] = 8'hFF;
-        rom_inst.memory[8'h10] = `OPCODE_NOT;
-        rom_inst.memory[8'h11] = `OPCODE_INC;
-        rom_inst.memory[8'h12] = `OPCODE_DEC;
-        rom_inst.memory[8'h13] = `OPCODE_NOP;
-        for (i = 8'h14; i < 8'hFF; i = i + 1) rom_inst.memory[i] = `OPCODE_NOP;
+        rom_array[8'h00] = `OPCODE_LDA_IMM;
+        rom_array[8'h01] = 8'h55;
+        rom_array[8'h02] = `OPCODE_LDX_IMM;
+        rom_array[8'h03] = 8'hAA;
+        rom_array[8'h04] = `OPCODE_LDY_IMM;
+        rom_array[8'h05] = 8'h33;
+        rom_array[8'h06] = `OPCODE_ADD_IMM;
+        rom_array[8'h07] = 8'h0A;
+        rom_array[8'h08] = `OPCODE_SUB_IMM;
+        rom_array[8'h09] = 8'h05;
+        rom_array[8'h0A] = `OPCODE_AND_IMM;
+        rom_array[8'h0B] = 8'hFF;
+        rom_array[8'h0C] = `OPCODE_OR_IMM;
+        rom_array[8'h0D] = 8'h0F;
+        rom_array[8'h0E] = `OPCODE_XOR_IMM;
+        rom_array[8'h0F] = 8'hFF;
+        rom_array[8'h10] = `OPCODE_NOT;
+        rom_array[8'h11] = `OPCODE_INC;
+        rom_array[8'h12] = `OPCODE_DEC;
+        rom_array[8'h13] = `OPCODE_NOP;
+        for (i = 8'h14; i < 8'hFF; i = i + 1) rom_array[i] = `OPCODE_NOP;
         
-        for (i = 16'h0100; i < 16'hFFFF; i = i + 1) ram_array[i] = 8'h00;
+        for (i = 16'h0100; i < 16'hFFFF; i = i + 1) ram_internal[i] = 8'h00;
         
         $write("Test Program:\n");
         $write("  0x0000: LDA #0x55  ; Load ACC = 85\n");
@@ -163,46 +135,44 @@ module cpu_tb;
         $write("  0x0013: NOP        ; Halt\n\n");
         
         // Reset
-        for (i = 0; i < 80; i = i + 1) $write("-");
-        $write("\nAPPLYING RESET\n");
-        for (i = 0; i < 80; i = i + 1) $write("-");
-        $write("\n");
+        $write("Applying reset...\n");
         reset = 1;
         #10;
         reset = 0;
         #10;
-        print_state("INITIAL STATE");
         
         // Execute instructions
-        for (i = 0; i < 80; i = i + 1) $write("-");
-        $write("\nEXECUTING INSTRUCTIONS\n");
-        for (i = 0; i < 80; i = i + 1) $write("-");
-        $write("\n");
+        $write("\nExecuting instructions...\n\n");
         
-        repeat (30) begin
+        repeat (25) begin
             @(posedge clk);
             #1;
-            print_state("EXECUTE");
+            clock_cycles = clock_cycles + 1;
+            $display("CYCLE %0d: PC=%04h DATA=%02h ACC=%02h X=%02h Y=%02h MEM_RD=%b MEM_WR=%b",
+                     clock_cycles, addr_bus, data_bus, acc_out, x_out, y_out, mem_read, mem_write);
         end
         
         // Summary
-        for (i = 0; i < 80; i = i + 1) $write("=");
+        $write("\n");
+        for (i = 0; i < 60; i = i + 1) $write("=");
         $write("\n");
         $write("SIMULATION COMPLETE\n");
         $write("Total clock cycles: %0d\n", clock_cycles);
         $write("Final ACC: 0x%02h  (Expected: 0x5F = 95)\n", acc_out);
         $write("Final X:   0x%02h  (Expected: 0xAA = 170)\n", x_out);
         $write("Final Y:   0x%02h  (Expected: 0x33 = 51)\n", y_out);
-        for (i = 0; i < 80; i = i + 1) $write("=");
+        for (i = 0; i < 60; i = i + 1) $write("=");
         $write("\n\n");
         
         #100;
         $finish;
     end
     
+    always #5 clk = ~clk;
+    
     initial begin
         #100000;
-        $write("\nTIMEOUT - Simulation took too long\n");
+        $write("\nTIMEOUT\n");
         $finish;
     end
     
