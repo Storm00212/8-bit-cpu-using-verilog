@@ -1,9 +1,8 @@
 // ============================================================================
-// CPU Top-Level Module
+// CPU Top-Level Module - Simplified
 // ============================================================================
 // 
-// The CPU Top-Level Module integrates all the individual components of the
-// 8-bit CPU. The testbench handles ROM/RAM and drives the data bus.
+// CPU handles memory access internally. Testbench only monitors signals.
 // ============================================================================
 
 `include "instructions.vh"
@@ -14,10 +13,10 @@ module cpu_top (
     input wire reset,         
     
     // Bus Interface
-    inout wire [7:0] data_bus,      
     output wire [15:0] addr_bus,     
     output wire mem_read,            
     output wire mem_write,           
+    inout wire [7:0] data_bus,
     output wire halt,
     
     // Debug/Status Outputs
@@ -25,7 +24,13 @@ module cpu_top (
     output wire [15:0] pc_out,      
     output wire [7:0] flags_out,     
     output wire [7:0] x_out,         
-    output wire [7:0] y_out
+    output wire [7:0] y_out,
+    
+    // ROM/RAM interfaces
+    output wire [7:0] rom_addr,
+    input wire [7:0] rom_data,
+    output wire [15:0] ram_addr,
+    input wire [7:0] ram_data
 );
 
     // =========================================================================
@@ -50,6 +55,8 @@ module cpu_top (
     
     wire [7:0] alu_result;
     wire [7:0] alu_flags;
+    
+    wire [7:0] mem_data_in;
     
     // =========================================================================
     // PC Register
@@ -127,11 +134,23 @@ module cpu_top (
     );
     
     // =========================================================================
-    // Memory Interface Logic
+    // Memory Interface
     // =========================================================================
     
     assign mem_read = internal_mem_read;
     assign addr_bus = mem_addr;
+    
+    // ROM address (lower 8 bits of mem_addr for ROM accesses)
+    assign rom_addr = mem_addr[7:0];
+    
+    // RAM address
+    assign ram_addr = mem_addr;
+    
+    // Memory data multiplexer
+    assign mem_data_in = (mem_addr[15:8] == 8'h00) ? rom_data : ram_data;
+    
+    // Data bus driver - only drive when reading from memory
+    assign data_bus = (internal_mem_read) ? mem_data_in : 8'hZZ;
     
     // =========================================================================
     // Output Assignments
