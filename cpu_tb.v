@@ -1,8 +1,8 @@
 // ============================================================================
-// CPU Testbench - Hierarchical ROM Access
+// CPU Testbench - Simplified
 // ============================================================================
 // 
-// Uses hierarchical path to access ROM's internal memory
+// CPU handles memory access. Testbench only monitors signals.
 // ============================================================================
 
 `timescale 1ns/1ps
@@ -25,9 +25,23 @@ module cpu_tb;
     wire [7:0] y_out;
     wire halt;
     
-    // ROM/RAM arrays (reference for testbench)
-    reg [7:0] rom_ref [0:65535];
+    // ROM/RAM interfaces
+    wire [7:0] rom_addr;
+    wire [7:0] rom_data;
+    wire [15:0] ram_addr;
+    wire [7:0] ram_data;
+    
+    // ROM/RAM arrays
+    reg [7:0] rom_array [0:255];
     reg [7:0] ram_array [0:65535];
+    
+    // ROM instance
+    rom rom_inst (.addr({8'h00, rom_addr}), .data_out(rom_data));
+    
+    // RAM instance  
+    ram ram_inst (.clk(clk), .reset(reset), .addr(ram_addr), 
+                  .data_in(acc_out), .write_enable(mem_write), 
+                  .read_enable(mem_read), .data_out(ram_data), .ready());
     
     // CPU instance
     cpu_top cpu (
@@ -42,46 +56,18 @@ module cpu_tb;
         .flags_out(flags_out),
         .x_out(x_out),
         .y_out(y_out),
-        .halt(halt)
+        .halt(halt),
+        .rom_addr(rom_addr),
+        .rom_data(rom_data),
+        .ram_addr(ram_addr),
+        .ram_data(ram_data)
     );
     
-    // ROM instance (for hierarchical access)
-    wire [7:0] rom_data_out;
-    rom rom_inst (
-        .addr(addr_bus),
-        .data_out(rom_data_out)
-    );
-    
-    // RAM instance
-    wire [7:0] ram_data_out;
-    ram ram_inst (
-        .clk(clk),
-        .reset(reset),
-        .addr(addr_bus),
-        .data_in(acc_out),
-        .write_enable(mem_write && addr_bus >= 16'h0100),
-        .read_enable(mem_read && addr_bus >= 16'h0100),
-        .data_out(ram_data_out),
-        .ready()
-    );
-    
-    // Hierarchical ROM memory access
+    // ROM access via hierarchical path
     integer i;
     initial begin
-        for (i = 0; i < 65536; i = i + 1) begin
+        for (i = 0; i < 256; i = i + 1) begin
             rom_inst.memory[i] = 8'h00;
-        end
-    end
-    
-    // Data bus driver - from ROM or RAM
-    assign data_bus = (mem_read && addr_bus < 16'h0100) ? rom_data_out :
-                     (mem_read && addr_bus >= 16'h0100) ? ram_data_out :
-                     8'hZZ;
-    
-    // RAM write tracking
-    always @(posedge clk) begin
-        if (mem_write && addr_bus >= 16'h0100) begin
-            ram_array[addr_bus] <= acc_out;
         end
     end
     
@@ -113,7 +99,7 @@ module cpu_tb;
             
             $write("--- MEMORY ---\n");
             if (addr_bus < 16'h0100) begin
-                $write("  ROM[0x%04h] = 0x%02h", addr_bus, rom_inst.memory[addr_bus]);
+                $write("  ROM[0x%04h] = 0x%02h", addr_bus, rom_inst.memory[addr_bus[7:0]]);
             end else begin
                 $write("  RAM[0x%04h] = 0x%02h", addr_bus, ram_array[addr_bus]);
             end
@@ -136,29 +122,29 @@ module cpu_tb;
         clk = 0;
         reset = 0;
         
-        // Load test program into ROM via hierarchical access
+        // Load test program
         $write("Loading test program...\n\n");
-        rom_inst.memory[16'h0000] = `OPCODE_LDA_IMM;
-        rom_inst.memory[16'h0001] = 8'h55;
-        rom_inst.memory[16'h0002] = `OPCODE_LDX_IMM;
-        rom_inst.memory[16'h0003] = 8'hAA;
-        rom_inst.memory[16'h0004] = `OPCODE_LDY_IMM;
-        rom_inst.memory[16'h0005] = 8'h33;
-        rom_inst.memory[16'h0006] = `OPCODE_ADD_IMM;
-        rom_inst.memory[16'h0007] = 8'h0A;
-        rom_inst.memory[16'h0008] = `OPCODE_SUB_IMM;
-        rom_inst.memory[16'h0009] = 8'h05;
-        rom_inst.memory[16'h000A] = `OPCODE_AND_IMM;
-        rom_inst.memory[16'h000B] = 8'hFF;
-        rom_inst.memory[16'h000C] = `OPCODE_OR_IMM;
-        rom_inst.memory[16'h000D] = 8'h0F;
-        rom_inst.memory[16'h000E] = `OPCODE_XOR_IMM;
-        rom_inst.memory[16'h000F] = 8'hFF;
-        rom_inst.memory[16'h0010] = `OPCODE_NOT;
-        rom_inst.memory[16'h0011] = `OPCODE_INC;
-        rom_inst.memory[16'h0012] = `OPCODE_DEC;
-        rom_inst.memory[16'h0013] = `OPCODE_NOP;
-        for (i = 16'h0014; i < 16'h0100; i = i + 1) rom_inst.memory[i] = `OPCODE_NOP;
+        rom_inst.memory[8'h00] = `OPCODE_LDA_IMM;
+        rom_inst.memory[8'h01] = 8'h55;
+        rom_inst.memory[8'h02] = `OPCODE_LDX_IMM;
+        rom_inst.memory[8'h03] = 8'hAA;
+        rom_inst.memory[8'h04] = `OPCODE_LDY_IMM;
+        rom_inst.memory[8'h05] = 8'h33;
+        rom_inst.memory[8'h06] = `OPCODE_ADD_IMM;
+        rom_inst.memory[8'h07] = 8'h0A;
+        rom_inst.memory[8'h08] = `OPCODE_SUB_IMM;
+        rom_inst.memory[8'h09] = 8'h05;
+        rom_inst.memory[8'h0A] = `OPCODE_AND_IMM;
+        rom_inst.memory[8'h0B] = 8'hFF;
+        rom_inst.memory[8'h0C] = `OPCODE_OR_IMM;
+        rom_inst.memory[8'h0D] = 8'h0F;
+        rom_inst.memory[8'h0E] = `OPCODE_XOR_IMM;
+        rom_inst.memory[8'h0F] = 8'hFF;
+        rom_inst.memory[8'h10] = `OPCODE_NOT;
+        rom_inst.memory[8'h11] = `OPCODE_INC;
+        rom_inst.memory[8'h12] = `OPCODE_DEC;
+        rom_inst.memory[8'h13] = `OPCODE_NOP;
+        for (i = 8'h14; i < 8'hFF; i = i + 1) rom_inst.memory[i] = `OPCODE_NOP;
         
         for (i = 16'h0100; i < 16'hFFFF; i = i + 1) ram_array[i] = 8'h00;
         
