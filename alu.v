@@ -13,7 +13,7 @@
 // - Support for both single-cycle and multi-cycle operations
 // - Built-in flag calculation for all operations
 // - Scientific calculation approximations using series expansions
-// ===========================================================================
+// ============================================================================
 
 `include "instructions.vh"
 
